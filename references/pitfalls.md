@@ -227,6 +227,39 @@ This creates a 44-character random password. Store it in a password manager — 
 
 **If you want to use the Web UI later:**
 - The password is the same as `AUTO_UNLOCK_PASSWORD` in `.env` initially
-- You can change the Web UI password in Settings without affecting automation
 - Run `sudo /usr/local/bin/alby-hub-password.sh show` in your terminal to get the current password
+- To change the Web UI password to something memorable: `http://<server-ip>:8080/settings/change-unlock-password`
+- Changing the Web UI password does **not** affect `AUTO_UNLOCK_PASSWORD` — automation keeps working
 - The Web UI is optional — for monitoring, channel management, or casual use. All operations are available via CLI.
+
+## 20. `nohup`/`&` doesn't work in Hermes terminal
+
+**Symptom:** `nohup: ignoring input` error or "Foreground command uses shell-level background wrappers" error when trying to start the hub in the background.
+
+**Cause:** Hermes terminal blocks shell-level backgrounding (`nohup`, `&`, `disown`, `setsid`).
+
+**Fix:** Use `terminal(background=true)` to start the hub as a tracked background process. Then run all subsequent commands (hub-cli, curl, etc.) in separate `terminal()` calls.
+
+## 21. CWD nuked during cleanup — shell breaks
+
+**Symptom:** After running `rm -rf /opt/albyhub`, all subsequent commands fail with "No such file or directory" or "cannot access parent directories: No such file or directory".
+
+**Cause:** The shell's current working directory was `/opt/albyhub`. Deleting it leaves the shell with a stale cwd reference.
+
+**Fix:** Always `cd /tmp` or `cd /root` BEFORE running `rm -rf /opt/albyhub`. Do NOT run the rm command from within the directory being deleted.
+
+## 22. Data remnants after nuke — hub recreates files
+
+**Symptom:** After `rm -rf /opt/albyhub && mkdir -p /opt/albyhub`, the new hub starts with old data (old channels, old wallet).
+
+**Cause:** The hub process was still running when files were deleted. It immediately recreates `nwc.db`, `ldk/storage`, etc. from its in-memory state.
+
+**Fix:** Kill the hub FIRST:
+```bash
+pkill -9 -f albyhub
+sleep 2
+pgrep -f albyhub && echo "STILL RUNNING" || echo "Dead"
+# Only proceed when confirmed dead
+cd /tmp
+sudo rm -rf /opt/albyhub
+```

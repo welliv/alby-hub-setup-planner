@@ -2,7 +2,7 @@
 name: alby-hub-setup-planner
 description: Step-by-step planner for setting up Alby Hub from scratch — fresh install, signet testing, NWC app creation, and recovery. Covers manual binary install, Docker, and cloud. Includes mutinynet-cli for signet faucet access.
 license: MIT
-version: "0.4.1"
+version: "0.4.2"
 ---
 
 # Alby Hub Setup Planner
@@ -69,11 +69,20 @@ This creates a 44-character random password, adds `AUTO_UNLOCK_PASSWORD=<passwor
 > **⚠️ Password handling:**
 > - The password is shown ONCE during generation — **copy it to a password manager immediately**
 > - The password is stored in `/opt/albyhub/.env` (chmod 600 — owner read-only)
-> - To view the password later: `sudo /usr/local/bin/alby-hub-password.sh show`
 > - **NEVER share the password in chat or messaging**
 > - For mainnet: treat this password like a banking password — it controls real funds
 >
-> **No Web UI needed:** The entire setup is done via CLI. If you want to access the Web UI later (`http://<server-ip>:8080`), use the password from `.env` to unlock it. You can change the Web UI password anytime without affecting `AUTO_UNLOCK_PASSWORD` automation.
+> **Viewing your password:** Run this on the server terminal:
+> ```bash
+> sudo /usr/local/bin/alby-hub-password.sh show
+> ```
+>
+> **Web UI access (optional):**
+> - Open `http://<server-ip>:8080` in a browser
+> - Enter the password shown above to unlock
+> - To change the Web UI password to something memorable: go to `http://<server-ip>:8080/settings/change-unlock-password`
+> - Changing the Web UI password does **not** affect `AUTO_UNLOCK_PASSWORD` — automation keeps working
+> - The Web UI is optional — all operations are available via CLI
 >
 **3. Start the hub server**
 
@@ -83,6 +92,8 @@ cd /opt/albyhub && ./bin/albyhub &
 # The hub reads .env automatically from the working directory
 # With AUTO_UNLOCK_PASSWORD set, the node auto-unlocks on startup
 ```
+
+> **⚠️ Hermes terminal:** `nohup` and `&` backgrounding don't work in Hermes. Use `terminal(background=true)` to start the hub as a tracked background process. Then use separate `terminal()` calls for subsequent steps.
 
 **4. Initialize wallet + authenticate**
 
@@ -276,19 +287,31 @@ See [references/pitfalls.md](references/pitfalls.md) for the full list. Top issu
 8. **Wrong env vars** — use `NETWORK=signet`, NOT `LDK_BITCOIN_NETWORK=signet`
 9. **Version pinning** — do NOT pin hub-cli to old versions; use `@getalby/hub-cli` without version
 10. **Wrong upstream docs** — The official `alby-hub-skill` SKILL.md shows `npx -y @getalby/hub-cli hub-cli <cmd>` — this FAILS with "unknown command 'hub-cli'". Use global `hub-cli <cmd>` directly. Also, the upstream `apps.md` shows `hub-cli apps` — the correct command is `hub-cli list-apps`.
+11. **JSON extraction in bash** — `hub-cli` returns JSON. Extract fields with `python3 -c "import sys,json; print(json.loads(sys.stdin.read())['key'])" <<< "$VAR"`, NOT with nested `$()` + `grep`/`awk` inside the same command — bash quoting breaks. Store hub-cli output in a variable first, then pipe to python3 in a separate step.
+12. **Hermes backgrounding** — `nohup`/`&` don't work in Hermes terminal. Use `terminal(background=true)` to start the hub. Run subsequent commands in separate `terminal()` calls.
+13. **CWD nuke risk** — `cd /tmp` before `rm -rf /opt/albyhub`. Killing the hub's working directory breaks the shell.
+14. **Data remnants after nuke** — Kill hub FIRST with `pkill -f albyhub`, verify it's dead, THEN remove files. Running hub recreates deleted files immediately.
 
 ## Cleanup / Nuke
 
 To start completely fresh:
 
 ```bash
-# Stop hub
-pkill -f albyhub
+# 1. Stop hub FIRST
+pkill -9 -f albyhub
+sleep 2
+pgrep -f albyhub || echo "Hub dead ✓"
 
-# Remove everything
+# 2. cd OUTSIDE /opt/albyhub before removing it
+cd /tmp
 sudo rm -rf /opt/albyhub
+
+# 3. Remove data directories
 rm -rf ~/.hub-cli
 rm -rf ~/.local/share/albyhub
+rm -rf ~/.config/albyhub
 ```
+
+> See pitfalls #11-#14 above for common nuke mistakes (CWD, data remnants).
 
 ⚠️ WARNING: This destroys the wallet. Only do this if you have the recovery phrase backed up or are on signet.
