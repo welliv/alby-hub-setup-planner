@@ -2,14 +2,12 @@
 name: alby-hub-setup-planner
 description: Step-by-step planner for setting up Alby Hub from scratch — fresh install, signet testing, NWC app creation, and recovery. Covers manual binary install, Docker, and cloud. Includes mutinynet-cli for signet faucet access.
 license: MIT
-version: "0.5.0"
+version: "0.4.1"
 ---
 
 # Alby Hub Setup Planner
 
 A thin, opinionated guide for getting Alby Hub running. Optimized for first-timers.
-
-**Design principle:** Fully automatable — zero UI dependency. The agent handles everything via CLI. The password is generated randomly, stored in `.env`, and never needs human input after initial setup.
 
 ## Scope
 
@@ -76,7 +74,7 @@ This creates a 44-character random password, adds `AUTO_UNLOCK_PASSWORD=<passwor
 > - For mainnet: treat this password like a banking password — it controls real funds
 >
 > **No Web UI needed:** The entire setup is done via CLI. If you want to access the Web UI later (`http://<server-ip>:8080`), use the password from `.env` to unlock it. You can change the Web UI password anytime without affecting `AUTO_UNLOCK_PASSWORD` automation.
-
+>
 **3. Start the hub server**
 
 ```bash

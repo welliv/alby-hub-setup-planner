@@ -2,12 +2,6 @@
 
 ## Password Management
 
-### Design Principle: Fully Automated, Zero UI
-
-The hub password is generated randomly once, stored in `.env`, and never needs human input again. The agent manages everything via CLI — no Web UI required at any point.
-
-If the user wants to access the Web UI later (`http://<server-ip>:8080`), they retrieve the password from `.env` themselves. Changing the Web UI password does NOT affect `AUTO_UNLOCK_PASSWORD` — automation keeps working.
-
 ### The Password Problem
 The hub password is needed for: wallet setup, unlock, backup, and recovery. It must be:
 1. **Strong** — random, not memorable (especially for mainnet)
@@ -15,12 +9,6 @@ The hub password is needed for: wallet setup, unlock, backup, and recovery. It m
 3. **Accessible** — the agent needs it for automated operations
 
 ### Recommended Approach
-
-**Generate a strong random password:**
-```bash
-sudo /usr/local/bin/alby-hub-password.sh generate
-```
-This generates a 44-char random password, adds `AUTO_UNLOCK_PASSWORD=<password>` to `.env`, and sets `chmod 600`.
 
 **For the server (automated access):**
 - Store in `/opt/albyhub/.env` as `AUTO_UNLOCK_PASSWORD=<password>`
@@ -32,6 +20,12 @@ This generates a 44-char random password, adds `AUTO_UNLOCK_PASSWORD=<password>`
 - Copy the password to a password manager (KeePassXC, Bitwarden, 1Password, etc.)
 - To view on server: `sudo /usr/local/bin/alby-hub-password.sh show` (run in your own terminal)
 - **NEVER share the password in chat, messaging, or email**
+
+**For setup (generating a new password):**
+```bash
+sudo /usr/local/bin/alby-hub-password.sh generate
+```
+This generates a 44-char random password, adds `AUTO_UNLOCK_PASSWORD=<password>` to `.env`, and sets proper file permissions.
 
 ### Why .env despite the risks?
 On a headless server without a desktop keyring (gnome-keyring, KWallet), the practical options are:
