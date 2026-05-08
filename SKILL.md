@@ -1,8 +1,8 @@
 ---
 name: alby-hub-setup-planner
-description: Step-by-step planner for setting up Alby Hub from scratch — fresh install, signet testing, NWC app creation, and recovery. Covers manual binary install, Docker, and cloud. Includes mutinynet-cli for signet faucet access.
+description: Step-by-step planner for setting up Alby Hub from scratch — fresh install, signet testing, NWC app creation, and recovery. Covers manual binary install, Docker, and cloud.
 license: MIT
-version: "0.4.2"
+version: "0.4.3"
 ---
 
 # Alby Hub Setup Planner
@@ -40,10 +40,9 @@ sudo cp scripts/alby-hub-password.sh /usr/local/bin/alby-hub-password.sh
 sudo chmod +x /usr/local/bin/alby-hub-password.sh
 ```
 
-**2. Configure for signet (optional)**
+**2. Configure .env**
 
-Create `/opt/albyhub/.env`:
-
+For **signet** (testing — free sats):
 ```env
 NETWORK=signet
 LDK_ESPLORA_SERVER=https://mutinynet.com/api
@@ -52,8 +51,16 @@ TX_EXPLORER=https://mutinynet.com/tx
 WORK_DIR=.
 ```
 
-> **IMPORTANT:** Alby's default signet Esplora server returns 404. Use Mutinynet's own Esplora (`mutinynet.com/api`). If that's unreachable, fall back to `https://mempool.space/signet/api`.
-> **Transaction verification:** Use `https://mutinynet.com/tx/<txid>` — Mutinynet-internal transactions (faucet payouts, channel opens) appear here first and may not propagate to public signet explorers.
+For **mainnet** (real bitcoin):
+```env
+NETWORK=mainnet
+WORK_DIR=.
+```
+
+> **IMPORTANT (signet only):** Alby's default signet Esplora server returns 404. Use Mutinynet's own Esplora (`mutinynet.com/api`). If that's unreachable, fall back to `https://mempool.space/signet/api`.
+> **Transaction verification:** Signet: `https://mutinynet.com/tx/<txid>`. Mainnet: `https://mempool.space/tx/<txid>`.
+
+See [references/mainnet.md](references/mainnet.md) for mainnet-specific guidance.
 
 **2b. Generate and set a strong password**
 
@@ -256,7 +263,8 @@ See [references/security.md](references/security.md) for the full security guide
 
 For testing without real bitcoin, use Mutinynet signet. See:
 
-- [references/mutinynet-cli.md](references/mutinynet-cli.md) — faucet access, channel opening
+- [references/mutinynet.md](references/mutinynet.md) — signet testing, faucet access, mutinynet-cli
+- [references/mainnet.md](references/mainnet.md) — mainnet-specific considerations
 - [references/pitfalls.md](references/pitfalls.md) — common issues and fixes
 
 ## Post-Setup Checklist
@@ -272,6 +280,10 @@ For testing without real bitcoin, use Mutinynet signet. See:
 - [ ] **Rebalance:** Push sats through channel for outbound liquidity ✅
 - [ ] **Test 2 — Send:** Pay external LNURL/invoice → settled ✅
 - [ ] **Verify:** `list-transactions` shows all payments settled ✅
+
+## Mainnet
+
+For mainnet setup, the same 8-step flow applies — the only differences are which `.env` values to use and where funds come from. See [references/mainnet.md](references/mainnet.md) for the complete mainnet reference.
 
 ## Common Pitfalls
 
