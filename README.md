@@ -60,8 +60,7 @@ references/
 
 | | Signet | Mainnet |
 |---|---|---|
-| **Cost** | Free (faucet) | Real sats (~13k fee for 150k channel) |
-| **Recovery phrase** | Low stakes | Metal backup, bank vault |
+| **Cost** | Free (faucet) | Real sats |
 | **LSP fee** | Free at faucet.mutinynet.com | Pay from funded wallet |
 | **Rebalance** | Free at faucet | Pay from real wallet |
 | **NWC budget** | Testing | Controls real spending |
