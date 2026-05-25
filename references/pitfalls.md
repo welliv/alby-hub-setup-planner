@@ -1,25 +1,27 @@
-# Alby Hub Setup Pitfalls
+# Alby Hub Pitfalls
 
 ## 1. Signet Esplora — Alby's default is broken
 
 **Symptom:** LDK sync stalls indefinitely or shows errors.
 
-**Cause:** Alby's default signet Esplora (`electrs.getalbypro.com`) returns 404 for signet endpoints.
+**Cause:** Alby's default signet Esplora (`electrs.getalbypro.com`) returns 404 for
+signet endpoints.
 
 **Fix:** Use Mutinynet's own Esplora in `.env`:
 ```env
 LDK_ESPLORA_SERVER=https://mutinynet.com/api
 MEMPOOL_API=https://mutinynet.com/api
+TX_EXPLORER=https://mutinynet.com/tx
 ```
 If Mutinynet's Esplora is also unreachable, fall back to `https://mempool.space/signet/api`.
 
-## 2. hub-cli command not found (or "unknown command 'hub-cli'")
+## 2. hub-cli command not found
 
 **Symptom:** `hub-cli: command not found` or `error: unknown command 'hub-cli'`.
 
 **Cause:** Two possible issues:
 - `hub-cli` not installed globally — run `npm install -g @getalby/hub-cli`
-- Using wrong invocation: `npx -y @getalby/hub-cli hub-cli` fails because npx doesn't chain subcommands that way
+- Using wrong invocation: `npx -y @getalby/hub-cli hub-cli` fails
 
 **Fix:** Install globally, then call directly:
 ```bash
@@ -40,7 +42,8 @@ hub-cli start --password YOUR_PASSWORD --save
 
 **Symptom:** Channel shows 0 local / 0 remote balance, state "pending".
 
-**Cause:** Mutinynet faucet broadcasts transactions on its internal network but they may not appear on public Esplora instances (mempool.space/signet).
+**Cause:** Mutinynet faucet broadcasts transactions on its internal network but they
+may not appear on public Esplora instances (mempool.space/signet).
 
 **Fix:**
 - Use Megalith LSP channel opening instead (LSPS1 flow) — paid via faucet, channel activates immediately
@@ -48,23 +51,21 @@ hub-cli start --password YOUR_PASSWORD --save
 
 ## 5. LSP channel opens but can't send payments
 
-**Symptom:** Channel is active and online, but `pay-invoice` fails with "Failed to send the given payment". `list-channels` shows `localBalanceSat: ~660` (just the reserve + dust).
+**Symptom:** Channel is active and online, but `pay-invoice` fails. `list-channels`
+shows `localBalanceSat: ~660` (just the reserve + dust).
 
-**Cause:** LSP channels only provide **inbound** liquidity. All balance is on the remote side. You have ~0 outbound balance until you push sats through the channel.
+**Cause:** LSP channels only provide **inbound** liquidity. All balance is on the
+remote side. You have ~0 outbound balance until you push sats through the channel.
 
 **Fix:** Push sats to the other side:
 ```bash
-# Create a large invoice from your hub
 hub-cli make-invoice --amount 100000 --description "Outbound liquidity"
-
 # Pay it from the Mutinynet faucet: https://faucet.mutinynet.com
-
-# Now localBalanceSat ≈ 100k, and you can send payments
 ```
+After payment settles, `localBalanceSat` grows and becomes spendable.
 
-This is expected behavior — the LSP gives you a "receive-only" channel by design. You need outbound liquidity to send payments.
-
-**Related:** if `forwardingFeeBaseSat` is high (e.g. 100,000 sats), even small payments may fail until you push enough to cover the base fee.
+**Related:** if `forwardingFeeBaseSat` is high (e.g. 100,000 sats), even small payments
+may fail until you cover the base fee.
 
 ## 6. mutinynet-cli rate limits
 
@@ -98,21 +99,19 @@ hub-cli create-app --name "My App" --max-amount 100000 --budget-renewal monthly
 hub-cli start --password YOUR_PASSWORD --save
 ```
 
-## 8b. Wrong hub-cli command names
+## 9. Wrong hub-cli command names
 
-**Symptom:** `error: unknown command 'apps'`
-
-**Cause:** Some command names differ from what you might expect.
+**Symptom:** `error: unknown command 'apps'`.
 
 **Fix:**
 ```bash
-hub-cli list-apps      # List NWC apps (NOT "apps")
-hub-cli list-channels  # List channels
-hub-cli list-peers     # List peers
+hub-cli list-apps          # List NWC apps (NOT "apps")
+hub-cli list-channels      # List channels
+hub-cli list-peers         # List peers
 hub-cli list-transactions  # List payment history
 ```
 
-## 9. AUTO_UNLOCK_PASSWORD not set
+## 10. AUTO_UNLOCK_PASSWORD not set
 
 **Symptom:** Hub web UI shows "locked" after restart, CLI fails.
 
@@ -122,34 +121,34 @@ hub-cli list-transactions  # List payment history
 - Add `AUTO_UNLOCK_PASSWORD=yourpassword` to `.env`, or
 - Manually run `hub-cli unlock --password YOUR_PASSWORD --save` after each restart
 
-## 10. Recovery phrase file — never read it
+## 11. Recovery phrase file — never read it
 
 **Symptom:** Agent reads or displays the recovery phrase in chat.
 
-**Fix:** The agent MUST NOT read `.recovery` files. Tell the user the file path so they can store it offline.
+**Fix:** The agent MUST NOT read `.recovery` files. Tell the user the file path so
+they can store it offline.
 
-## 11. Channel has capacity but can't send payments (0 outbound)
+## 12. Channel has capacity but can't send payments (0 outbound)
 
-**Symptom:** LSP channel is active, `localBalanceSat` is tiny (e.g. 660 sats), `localSpendableBalanceSat` is 0. `pay-invoice` fails with "Failed to send the given payment."
+**Symptom:** LSP channel is active, `localBalanceSat` is tiny (e.g. 660 sats),
+`localSpendableBalanceSat` is 0. `pay-invoice` fails.
 
-**Cause:** LSP channels open with almost all balance on the remote side. You have **inbound** liquidity (can receive) but **0 outbound** (cannot send).
+**Cause:** LSP channels open with almost all balance on the remote side.
 
 **Fix:** Push sats through the channel to rebalance:
 ```bash
 hub-cli make-invoice --amount 100000 --description "Rebalance"
 # Pay from external source: faucet (signet) or another wallet (mainnet)
 ```
-After payment settles, `localBalanceSat` grows and becomes spendable.
 
-**Pre-check before sending:** Always check `localSpendableBalanceSat` in `list-channels` output. If 0, rebalance first.
+**Pre-check before sending:** Always check `localSpendableBalanceSat` in `list-channels`
+output. If 0, rebalance first.
 
 ## 13. Wrong env var names
 
 **Symptom:** Hub ignores network configuration.
 
-**Cause:** Using outdated var names. The hub reads `.env` automatically (don't source it).
-
-**Correct signet `.env`:**
+**Fix — Correct signet `.env`:**
 ```env
 NETWORK=signet
 LDK_ESPLORA_SERVER=https://mutinynet.com/api
@@ -161,13 +160,13 @@ AUTO_UNLOCK_PASSWORD=your-strong-random-password
 
 Do NOT use `LDK_BITCOIN_NETWORK` — that var is not recognized.
 
-## 14. Forgetting static channel backups (self-hosted without Alby account)
+## 14. Forgetting static channel backups
 
 **Symptom:** Server dies, channels exist on-chain but spending balance is unrecoverable.
 
 **Cause:** Without an Alby account, static channel backups are stored ONLY locally.
 
-**Fix:** After every new channel open, copy backups to a separate secure location:
+**Fix:** After every new channel open:
 ```bash
 cp -r /opt/albyhub/ldk/static_channel_backups/ /secure/backup/path/
 ```
@@ -178,88 +177,150 @@ cp -r /opt/albyhub/ldk/static_channel_backups/ /secure/backup/path/
 
 **Symptom:** Hub password visible in conversation history.
 
-**Fix:** For mainnet setups, do NOT share the password in chat. Instead:
-- Use `AUTO_UNLOCK_PASSWORD` in `.env` for agent automation
+**Fix:** For mainnet setups, do NOT share the password in chat.
+- Use `AUTO_UNLOCK_PASSWORD` in `.env` for automation
 - For manual operations, direct the user to run commands themselves
-- The `.env` file (`chmod 600`) is the secure way to store the password on the server
-- Generate strong random passwords: `openssl rand -base64 24`
+- The `.env` file (`chmod 600`) is the secure way to store the password
+- Generate strong passwords: `sudo /usr/local/bin/alby-hub-password.sh generate`
 
 ## 16. Recovery phrase left on disk
 
-**Symptom:** `~/.hub-cli/albyhub.recovery` file exists on the server after setup.
+**Symptom:** `~/.hub-cli/albyhub.recovery` file exists after setup.
 
-**Risk:** Anyone with server access can read the file and steal all funds.
+**Risk:** Anyone with server access can steal all funds.
 
 **Fix:** After the user confirms they've written down the recovery phrase offline:
 ```bash
 rm ~/.hub-cli/albyhub.recovery
 ```
-The ONLY copy of the recovery phrase should be the user's physical offline backup.
 
-## 17. Using weak or memorable passwords for mainnet
+## 17. Weak passwords for mainnet
 
-**Symptom:** Password like "Hermes123" or "password123" used for the hub.
-
-**Risk:** Brute-force attacks, credential stuffing, or simple guessing can compromise the wallet and all funds.
+**Symptom:** Password like "Hermes123" used for the hub.
 
 **Fix:** Always generate a strong random password:
 ```bash
 sudo /usr/local/bin/alby-hub-password.sh generate
 ```
-This creates a 44-character random password. Store it in a password manager — you won't need to type it manually since `AUTO_UNLOCK_PASSWORD` in `.env` handles it automatically.
+This creates a 44-character random password. Store it in a password manager.
 
 ## 18. Password lost / forgot .env contents
 
-**Symptom:** `.env` file is corrupted, lost, or server is reinstalled. `AUTO_UNLOCK_PASSWORD` is unknown.
-
-**Risk:** Cannot unlock the hub. Cannot run `backup-mnemonic`. Full re-setup required (new wallet).
+**Symptom:** `.env` file is corrupted or lost.
 
 **Fix (prevention):**
 - Store the password in a password manager during initial setup
-- To recover: if you have the recovery phrase, you can reinstall and restore the wallet, but lightning channels will need to be force-closed (14-day wait)
-- View current password anytime: `sudo /usr/local/bin/alby-hub-password.sh show`
+- View current password: `sudo /usr/local/bin/alby-hub-password.sh show`
+- Recovery requires the 12-word phrase — lightning channels will need force-close (14-day wait)
 
 ## 19. Thinking the Web UI is required for setup
 
-**Symptom:** User opens `http://<server-ip>:8080` and tries to set up the wallet through the browser.
-
-**Reality:** The entire setup is designed to be fully automated via CLI. No Web UI interaction is needed at any point.
+**Reality:** The entire setup is designed to be fully automated via CLI. No Web UI
+interaction is needed.
 
 **If you want to use the Web UI later:**
-- The password is the same as `AUTO_UNLOCK_PASSWORD` in `.env` initially
-- Run `sudo /usr/local/bin/alby-hub-password.sh show` in your terminal to get the current password
-- To change the Web UI password to something memorable: `http://<server-ip>:8080/settings/change-unlock-password`
-- Changing the Web UI password does **not** affect `AUTO_UNLOCK_PASSWORD` — automation keeps working
-- The Web UI is optional — for monitoring, channel management, or casual use. All operations are available via CLI.
+- The password is the same as `AUTO_UNLOCK_PASSWORD` initially
+- Change at: `http://<server-ip>:8080/settings/change-unlock-password`
+- Changing the Web UI password does NOT affect `AUTO_UNLOCK_PASSWORD` — automation keeps working
 
 ## 20. `nohup`/`&` doesn't work in Hermes terminal
 
-**Symptom:** `nohup: ignoring input` error or "Foreground command uses shell-level background wrappers" error when trying to start the hub in the background.
+**Fix:** Use `terminal(background=true)` to start the hub. Then run all subsequent
+commands in separate `terminal()` calls.
 
-**Cause:** Hermes terminal blocks shell-level backgrounding (`nohup`, `&`, `disown`, `setsid`).
+## 21. CWD nuked during cleanup
 
-**Fix:** Use `terminal(background=true)` to start the hub as a tracked background process. Then run all subsequent commands (hub-cli, curl, etc.) in separate `terminal()` calls.
+**Symptom:** After `rm -rf /opt/albyhub`, all subsequent commands fail.
 
-## 21. CWD nuked during cleanup — shell breaks
+**Cause:** Shell's current working directory was `/opt/albyhub`.
 
-**Symptom:** After running `rm -rf /opt/albyhub`, all subsequent commands fail with "No such file or directory" or "cannot access parent directories: No such file or directory".
+**Fix:** Always `cd /tmp` or `cd /tmp` BEFORE running `rm -rf /opt/albyhub`.
 
-**Cause:** The shell's current working directory was `/opt/albyhub`. Deleting it leaves the shell with a stale cwd reference.
+## 22. Data remnants after nuke
 
-**Fix:** Always `cd /tmp` or `cd /root` BEFORE running `rm -rf /opt/albyhub`. Do NOT run the rm command from within the directory being deleted.
+**Symptom:** New hub starts with old data (old channels, old wallet).
 
-## 22. Data remnants after nuke — hub recreates files
-
-**Symptom:** After `rm -rf /opt/albyhub && mkdir -p /opt/albyhub`, the new hub starts with old data (old channels, old wallet).
-
-**Cause:** The hub process was still running when files were deleted. It immediately recreates `nwc.db`, `ldk/storage`, etc. from its in-memory state.
+**Cause:** Hub process was still running when files were deleted.
 
 **Fix:** Kill the hub FIRST:
 ```bash
 pkill -9 -f albyhub
 sleep 2
 pgrep -f albyhub && echo "STILL RUNNING" || echo "Dead"
-# Only proceed when confirmed dead
 cd /tmp
 sudo rm -rf /opt/albyhub
 ```
+
+## 23. appPubkey vs id confusion
+
+**Symptom:** `404 Not Found` when deleting an app.
+
+**Cause:** `DELETE /api/apps/{key}` requires the hex `appPubkey`, NOT the numeric `id`.
+The numeric `id` is used for transfers (`toAppId`) and listing.
+
+**Fix:** List all apps and find by numeric `id`, then use the `appPubkey` from the
+listing for deletion.
+
+## 24. Transfer `toAppId` type error
+
+**Symptom:** `400 Bad Request: Unmarshal type error: expected=uint, got=string, field=toAppId`
+
+**Cause:** The Hub's Go backend strictly expects a JSON number. If the ID was stored
+as a string in JSON and read back without `Number()` conversion, it fails.
+
+**Fix:** Store as number in JSON, read back with `Number()`. Never call `String()`
+on the ID before passing it to the request body. See
+[toappId-uint-string-bug.md](toappId-uint-string-bug.md).
+
+## 25. v1.22.2 two-step setup required
+
+**Symptom:** `setupCompleted: false` after calling `/api/setup`.
+
+**Cause:** v1.22.2 requires two separate calls: `/api/setup` (stores config, returns 204)
+then `/api/start` (starts LDK node, returns JWT).
+
+**Fix:**
+```bash
+hub-cli setup --password '<password>' --backend LDK
+hub-cli start --password '<password>' --save
+```
+
+## 26. Lightning address OAuth failure
+
+**Symptom:** `POST /api/lightning-addresses` returns
+`"oauth2: token expired and refresh token is not set"`.
+
+**Cause:** The Hub doesn't have a live Alby account OAuth session. The JWT is valid
+but lightning address creation requires OAuth.
+
+**Fix:** Treat `createLightningAddress` as best-effort. The NWC connection and `lud16`
+remain fully usable. Serve `/.well-known/lnurlp/<username>` from your backend instead.
+See [lnurl-pay-endpoint.md](lnurl-pay-endpoint.md).
+
+## 27. Megalith minimum channel size confusion
+
+**Symptom:** `CounterpartyForceClosed: chan size below min chan size` when using 150k.
+
+**Cause:** On older Hub versions, Megalith Mutinynet required 200k minimum.
+
+**Fix:** On v1.22.2, 150k works. Use `hub-cli request-lsp-order --amount 150000 --lsp-identifier megalith`.
+
+## 28. Esplora `confirmations` is null during signet sync lag
+
+**Symptom:** Esplora returns `confirmations: null` for a transaction that is deeply
+confirmed (42+ confirmations visible at `https://mutinynet.com/tx/<txid>`).
+
+**Fix:** Don't gate `pay-invoice` on the API `confirmations` field. Check
+`hub-cli get-node-status` for `LatestOnchainWalletSyncTimestamp` and ensure sync lag
+is under 30 seconds. Verify at `https://mutinynet.com/tx/<txid>` (signet) or
+`https://mempool.space/tx/<txid>` (mainnet).
+
+## 29. mutinynet-cli login device code invalidation
+
+**Symptom:** GitHub device code expires before you can auth.
+
+**Cause:** Each `mutinynet-cli login` call generates a new code and invalidates the
+previous one.
+
+**Fix:** Run once, keep the process alive with `background(true)` + PTY, and auth the
+code it shows. See [mutinynet-cli.md](mutinynet-cli.md).

@@ -1,18 +1,19 @@
-# Alby Hub Setup Planner
+# Alby Hub Setup Planner + API Reference
 
-> An [Agent Skill](https://agentskills.io/) that guides AI agents through setting up [Alby Hub](https://github.com/getAlby/hub) — a self-custodial Bitcoin Lightning node.
+> An [Agent Skill](https://agentskills.io/) that guides AI agents through setting up
+> [Alby Hub](https://github.com/getAlby/hub) — a self-custodial Bitcoin Lightning node —
+> and operating it day-to-day via the REST API.
 
 ## What This Is
 
-A **thin, opinionated planner** that an agent executes step-by-step. It covers:
+A **two-in-one skill**:
 
-- **Manual binary install** — fastest path, works on any Linux server
-- **Signet testing** — free bitcoin, zero risk, same workflow as mainnet
-- **Mainnet deployment** — real money, same steps, higher security stakes
-- **NWC app creation** — connect wallets, allocate budgets
-- **Recovery & backup** — mnemonic handling, channel backups
+1. **8-step setup planner** — install, configure, wallet init, LSP channel, NWC app,
+   backup, payment testing
+2. **REST API reference** — app management, transfers, Lightning addresses, LNURL pay,
+   invoices, payments, pitfalls
 
-The planner is **8 steps**. Each step has verifiable success criteria (e.g. `"state": "settled"`).
+Covers **signet** (free testing) and **mainnet** (real funds).
 
 ## Installation
 
@@ -24,30 +25,39 @@ git clone https://github.com/welliv/alby-hub-setup-planner.git
 npx skills add welliv/alby-hub-setup-planner
 ```
 
-Compatible with Claude Code, Cursor, GitHub Copilot, OpenClaw, Hermes, and any agent that reads `SKILL.md`.
+Compatible with Claude Code, Cursor, GitHub Copilot, OpenClaw, Hermes, and any agent
+that reads `SKILL.md`.
 
 ## Example Prompts
-
-Use these prompts to trigger the skill:
 
 - "Set up Alby Hub on signet"
 - "Install Alby Hub and open a Lightning channel"
 - "Initialize my Alby Hub wallet and create an NWC connection"
 - "Guide me through a full Alby Hub test setup with signet"
+- "Create an NWC app and transfer 10000 sats to it"
+- "Set up a Lightning address for my Hub"
 
 ## Repo Structure
 
 ```
-README.md                    ← You are here (human docs)
-SKILL.md                     ← The skill (agent instructions)
+README.md                              ← You are here (human docs)
+SKILL.md                               ← The skill (agent instructions)
 scripts/
-  alby-hub-password.sh       ← Password generate/show/export
+  alby-hub-password.sh                 ← Password generate/show/export
 references/
-  pitfalls.md                ← Common issues + fixes (loaded on demand)
-  security.md                ← Password, recovery, backups
-  lsp.md                     ← LSP channel opening flow
-  mutinynet.md               ← Signet testing, faucet, mutinynet-cli
-  mainnet.md                 ← Mainnet-specific considerations
+  alby-hub-v1.22.2-setup.md            ← Complete v1.22.2 signet setup flow
+  nuke-and-rebuild.md                  ← Full teardown procedure
+  mutinynet.md                         ← Signet testing, faucet, mutinynet-cli
+  signet-sync-and-esplora.md           ← Sync lag, Esplora behaviours, address derivation
+  mainnet.md                           ← Mainnet-specific considerations
+  lsp.md                               ← LSP channel opening flow, costs, troubleshooting
+  lsp-channel-opening.md               ← LSPS1 via hub-cli request-lsp-order (from alby-hub-api)
+  megalith-signet-lsp.md               ← Megalith minimums, CounterpartyForceClosed
+  nwc-faucet-patterns.md               ← Full faucet identity + wallet creation flow
+  lnurl-pay-endpoint.md                ← LNURL pay for LightningAddress SDK compatibility
+  toappId-uint-string-bug.md           ← The expected=uint, got=string transfer bug
+  pitfalls.md                          ← 29 common issues and fixes
+  security.md                          ← Password, recovery, channel backups
 ```
 
 ## Signet vs Mainnet
@@ -58,6 +68,7 @@ The **same 8-step workflow** applies to both. Only the source of funds and risk 
 |---|---|---|
 | **Network** | `NETWORK=signet` | `NETWORK=mainnet` |
 | **Esplora** | `mutinynet.com/api` | Default (Alby's) |
+| **Block explorer** | `mutinynet.com/tx/<txid>` | `mempool.space/tx/<txid>` |
 | **Cost** | Free (faucet) | Real sats (~13k fee for 150k channel) |
 | **Recovery phrase** | Low stakes | Metal backup, bank vault |
 | **LSP fee** | Free at faucet | Pay from funded wallet |
@@ -70,10 +81,6 @@ The **same 8-step workflow** applies to both. Only the source of funds and risk 
 - ~70MB free disk space
 - Signet: a GitHub account (for faucet)
 - Mainnet: a funded Bitcoin wallet
-
-## After Setup
-
-Once the hub is running, switch to **[alby-hub-skill](https://github.com/getAlby/hub-skill)** for day-to-day operations (paying invoices, checking balances, managing channels).
 
 ## License
 

@@ -1,12 +1,13 @@
 # Mutinynet
 
-Mutinynet is a bitcoin signet for testing. Use it to test the hub without spending real bitcoin.
+Mutinynet is a bitcoin signet for testing. Use it to test the hub without spending
+real bitcoin.
 
-> **Only use Mutinynet when the user explicitly asks for it** (e.g. mentions "mutinynet", "testnet", "test setup", or "no real funds"). Mainnet is always the default — do not suggest Mutinynet proactively.
+> **Only use Mutinynet when the user explicitly asks for it** (e.g. mentions
+> "mutinynet", "testnet", "test setup", or "no real funds"). Mainnet is always the
+> default — do not suggest Mutinynet proactively.
 
 ## Hub Setup for Mutinynet
-
-Create a `.env` file in the folder where you run the hub. Hub reads it automatically — do not pass env vars inline and do not `source` it manually:
 
 ```env
 NETWORK=signet
@@ -16,15 +17,16 @@ TX_EXPLORER=https://mutinynet.com/tx
 WORK_DIR=.
 ```
 
-> **IMPORTANT:** Use `NETWORK=signet` (NOT `LDK_BITCOIN_NETWORK=signet` — that var is not recognized). Use Mutinynet's own Esplora (`mutinynet.com/api`). Fall back to `https://mempool.space/signet/api` only if Mutinynet's is unreachable.
+> **IMPORTANT:** Use `NETWORK=signet` (NOT `LDK_BITCOIN_NETWORK`). Use Mutinynet's
+> own Esplora (`mutinynet.com/api`). Fall back to `https://mempool.space/signet/api`
+> only if Mutinynet's is unreachable.
 
-Then run the hub in the background:
-
+Then run the hub:
 ```bash
 cd /opt/albyhub && ./bin/albyhub &
 ```
-
-Do **not** redirect stdout. Logs go to `{WORK_DIR}/log/nwc.log`.
+Hub reads `.env` automatically — do not source it. Do NOT redirect stdout. Logs go to
+`{WORK_DIR}/log/nwc.log`.
 
 ## Getting Test Funds
 
@@ -37,41 +39,54 @@ hub-cli get-onchain-address
 
 ### Via mutinynet-cli
 
+`mutinynet-cli` is a Rust binary for signet funding and LSP channel opening.
+
 ```bash
 # Install
 git clone https://github.com/benthecarman/mutinynet-cli.git
 cd mutinynet-cli && cargo build --release
 sudo cp target/release/mutinynet-cli /usr/local/bin/
 
-# Authenticate (GitHub device flow)
-mutinynet-cli auth github
+# Authenticate (GitHub device flow — run once, keep alive)
+mutinynet-cli login
+# Go to: https://github.com/login/device
+# Enter code: XXXX-XXXX
 
-# Request sats
-mutinynet-cli faucet --amount 100000
+# Request on-chain signet coins
+mutinynet-cli onchain --address <hub-onchain-address> --amount 100000
 
-# Open a channel
-mutinynet-cli channel open --amount 50000
+# Open an LSP channel (via Hub-returned Bolt 11 invoice)
+mutinynet-cli lightning pay '<bolt11-invoice>'
 ```
+
+> **Each `login` generates a new device code.** Run once, keep the process alive with
+> `background(true)` + PTY. Multiple rapid invocations invalidate previous codes.
+
+## Transaction Verification
+
+Signet:
+```
+https://mutinynet.com/tx/<txid>
+```
+
+Mainnet:
+```
+https://mempool.space/tx/<txid>
+```
+
+Mutinynet-internal transactions (faucet payouts, channel opens) appear on mutinynet
+first and may not propagate to public signet explorers.
 
 ## Rate Limits
 
 - **1M sat cap per payment** — requesting more fails
 - **Amount-based cooldown** — larger amounts = longer wait between requests
-- `Too many payments` error = cooldown active; switch to a new GitHub account for immediate access
-
-## Transaction Verification
-
-Use Mutinynet's own explorer for signet transactions:
-
-```
-https://mutinynet.com/tx/<txid>
-```
-
-Mutinynet-internal transactions (faucet payouts, channel opens) appear here first and may not propagate to public signet explorers.
+- `Too many payments` error = cooldown active; switch to a new GitHub account
 
 ## Getting Inbound Capacity (Recommended Path)
 
-Opening a channel via an LSP is the recommended first step — no on-chain deposit required.
+Opening a channel via an LSP is the recommended first step — no on-chain deposit
+required.
 
 ```bash
 hub-cli get-channel-suggestions
@@ -80,21 +95,40 @@ hub-cli request-lsp-order --amount 150000 --lsp-type LSPS1 --lsp-identifier mega
 
 Pay the LSP invoice at https://faucet.mutinynet.com or via `mutinynet-cli`.
 
-> ⚠️ LSP channels only give **inbound** liquidity. After opening, you can receive but NOT send. To get outbound liquidity, push sats through the channel (create a large invoice, pay it from the faucet). See [lsp.md](lsp.md) for details.
+> ⚠️ LSP channels only give **inbound** liquidity. After opening, you can receive but
+> NOT send. To get outbound liquidity, push sats through the channel. See
+> [lsp.md](lsp.md).
+
+## Address Derivation
+
+After initial setup, each call to `hub-cli get-onchain-address` returns a fresh
+HD-derived address. Fund the FIRST address returned, then confirm the Hub is tracking
+it before paying invoices. See
+[signet-sync-and-esplora.md](signet-sync-and-esplora.md) for details.
+
+## Esplora Sync
+
+- Esplora's guaranteed path: `GET /api/v1/tx/<txid>`
+- Block tip: `GET /api/v1/blocks/tip/height` (integer)
+- `confirmations` may be `null` even when confirmed; use `mutinynet.com/tx/<txid>`
+- Initial signet sync may lag by 70+ blocks; wait for `LatestOnchainWalletSyncTimestamp`
+  within 30 seconds of `date +%s` before paying invoices
 
 ## Notes
 
-- Hub reads `.env` automatically — do not source it or pass vars inline.
-- `get-channel-suggestions` returns all networks; filter to signet/Mutinynet entries only.
-- Mutinynet transactions use signet coins with no real value.
+- Hub reads `.env` automatically
+- `get-channel-suggestions` returns all networks; filter to signet/Mutinynet entries
+- Mutinynet transactions use signet coins with no real value
 
 ## Troubleshooting
 
 | Issue | Fix |
-|-------|-----|
+|---|---|
 | `Too many payments` | Wait or use new GitHub account |
-| `Device flow timeout` | Re-run `mutinynet-cli auth github` |
+| `Device flow timeout` | Re-run `mutinynet-cli login` |
 | Channel stuck at 0 conf | Expected on signet; use LSP instead |
+| Port 8080 not listening | Hub crashed — check `tail -30 /opt/albyhub/log/nwc.log` |
+| Height 0 forever | Esplora not responding — check `LDK_ESPLORA_SERVER` URL |
 
 ## Cleanup
 

@@ -36,9 +36,10 @@ Everything in the planner is the same except where funds come from.
 4. **NWC budget** — `--max-amount` controls REAL spending. Set conservatively.
 5. **LDK sync** — On mainnet, initial sync takes longer (5-15 minutes). Wait for `get-node-status` to show `isReady: true` before opening channels.
 
-## Verifying Mainnet Transactions
+## Verifying Transactions
 
-Use `https://mempool.space/tx/<txid>` for mainnet transaction verification.
+- **Mainnet:** `https://mempool.space/tx/<txid>`
+- **Signet:** `https://mutinynet.com/tx/<txid>`
 
 ## Choosing an LSP on Mainnet
 
